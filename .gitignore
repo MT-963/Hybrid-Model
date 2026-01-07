@@ -1,0 +1,15 @@
+asvspoof5/
+pycash/
+features/SSPS_SimCLR_ECAPA/*
+!features/SSPS_SimCLR_ECAPA/.gitkeep
+features/WAVLM_LARGE_L8_ds4_fp16/*
+!features/WAVLM_LARGE_L8_ds4_fp16/.gitkeep
+models/hybrid_wavlm_ds4_fp16_ssps/*
+!models/hybrid_wavlm_ds4_fp16_ssps/.gitkeep
+models/hybrid_wavlm_fullres_fp16_ssps/*
+!models/hybrid_wavlm_fullres_fp16_ssps/.gitkeep
+
+
+
+
+
