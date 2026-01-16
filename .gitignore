@@ -1,5 +1,9 @@
+__pycache__/
 asvspoof5/
 pycash/
+features/
+models/
+ska-tdnn/
 features/SSPS_SimCLR_ECAPA/*
 !features/SSPS_SimCLR_ECAPA/.gitkeep
 features/WAVLM_LARGE_L8_ds4_fp16/*

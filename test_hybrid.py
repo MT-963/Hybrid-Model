@@ -31,7 +31,12 @@ from tqdm import tqdm
 
 import eval_metrics as em
 from loss import OCSoftmax, setup_seed
-from NeXt_TDNN_ASV.models import NeXt_TDNN_ECA_ilk_ilk_Light
+from ska_tdnn_backbone import SKA_TDNN_Backbone
+try:
+    from NeXt_TDNN_ASV.models import NeXt_TDNN_ECA_ilk_ilk_Light
+    NEXT_TDNN_AVAILABLE = True
+except ImportError:
+    NEXT_TDNN_AVAILABLE = False
 
 # Import config
 from config import (
@@ -193,15 +198,39 @@ class HybridFeatureDataset(Dataset):
 # HYBRID MODEL
 # =============================================================================
 class HybridModel(nn.Module):
-    def __init__(self, wavlm_dim: int, ssps_dim: int, emb_dim: int = 256, feat_len: int = 750):
+    def __init__(self, wavlm_dim: int, ssps_dim: int, emb_dim: int = 256, feat_len: int = 750, backbone_type: str = "skatdnn"):
+        """
+        Args:
+            wavlm_dim: WavLM/HuBERT feature dimension
+            ssps_dim: SSPS feature dimension
+            emb_dim: Embedding dimension
+            feat_len: Feature sequence length
+            backbone_type: "skatdnn" or "next_tdnn"
+        """
         super().__init__()
         
-        self.wavlm_backbone = NeXt_TDNN_ECA_ilk_ilk_Light.NeXtTDNN(in_chans=wavlm_dim)
+        # Select backbone based on type
+        if backbone_type == "skatdnn":
+            self.wavlm_backbone = SKA_TDNN_Backbone(
+                in_chans=wavlm_dim,
+                C=1024,
+                model_scale=8,
+                out_dim=None  # Return (B, 1536, T)
+            )
+        elif backbone_type == "next_tdnn":
+            if not NEXT_TDNN_AVAILABLE:
+                raise ImportError("NeXt TDNN not available. Install NeXt_TDNN_ASV or use 'skatdnn' backbone.")
+            self.wavlm_backbone = NeXt_TDNN_ECA_ilk_ilk_Light.NeXtTDNN(in_chans=wavlm_dim)
+        else:
+            raise ValueError(f"Unknown backbone_type: {backbone_type}. Use 'skatdnn' or 'next_tdnn'.")
         
         with torch.no_grad():
+            # Set to eval mode for BatchNorm during dummy forward pass
+            self.wavlm_backbone.eval()
             dummy = torch.randn(1, wavlm_dim, feat_len)
             out = self.wavlm_backbone(dummy)
             wavlm_out_dim = out.shape[1] if out.ndim == 3 else out.shape[-1]
+            self.wavlm_backbone.train()  # Set back to train mode
         
         self.wavlm_pool = nn.AdaptiveAvgPool1d(1)
         self.wavlm_fc = nn.Linear(wavlm_out_dim, emb_dim)
@@ -299,11 +328,14 @@ def test(config_name: str) -> None:
     )
 
     # Model
+    backbone_type = cfg.get('backbone_type', 'skatdnn')  # Default: SKA-TDNN
+    print(f"  Backbone: {backbone_type.upper()}")
     model = HybridModel(
         wavlm_dim=eval_ds.wavlm_dim,
         ssps_dim=eval_ds.ssps_dim,
         emb_dim=params["emb_dim"],
         feat_len=cfg['feat_len'],
+        backbone_type=backbone_type,
     ).to(device)
     
     # Load weights

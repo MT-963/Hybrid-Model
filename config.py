@@ -40,6 +40,7 @@ FEATURE_CONFIGS = {
         "ssps_path": PROJECT_ROOT / "features" / "SSPS_SimCLR_ECAPA",
         "feat_len": 187,  # 750/4 ~ 187
         "disk_space": "~130 GB",
+        "backbone_type": "skatdnn",  # "skatdnn" veya "next_tdnn"
     },
     
     # Full resolution config (downsample yok, float16) - ihtiyaç olursa
@@ -49,6 +50,7 @@ FEATURE_CONFIGS = {
         "ssps_path": PROJECT_ROOT / "features" / "SSPS_SimCLR_ECAPA",
         "feat_len": 750,  # Full resolution
         "disk_space": "~254 GB",
+        "backbone_type": "skatdnn",  # "skatdnn" veya "next_tdnn"
     },
     
 
@@ -122,6 +124,7 @@ def print_config():
     print(f"  WavLM Path: {cfg['wavlm_path']}")
     print(f"  SSPS Path: {cfg['ssps_path']}")
     print(f"  Feature Length: {cfg['feat_len']}")
+    print(f"  Backbone Type: {cfg.get('backbone_type', 'skatdnn')}")
     print(f"  Disk Space: {cfg['disk_space']}")
     print(f"  Output: {get_output_path(ACTIVE_CONFIG)}")
     print("=" * 60)
