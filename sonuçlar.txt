@@ -1,0 +1,110 @@
+
+
+--------------------------------------------------------------------
+
+PS D:\Mahmud> python train_hybrid.py --config wavlm_ds4_fp16_ssps
+
+============================================================
+HYBRID MODEL TRAINING
+============================================================
+Config: wavlm_ds4_fp16_ssps
+============================================================
+
+============================================================
+TRAINING: WavLM (4x downsample, fp16) + SSPS
+============================================================
+  WavLM: D:\Mahmud\features\WAVLM_LARGE_L8_ds4_fp16
+  SSPS: D:\Mahmud\features\SSPS_SimCLR_ECAPA
+  Feat Len: 187
+  Output: D:\Mahmud\models\hybrid_wavlm_ds4_fp16_ssps
+============================================================
+[INFO] WavLM dim: 1024, SSPS dim: 512, Samples: 182357
+[INFO] WavLM dim: 1024, SSPS dim: 512, Samples: 140950
+
+  WavLM dim: 1024
+  SSPS dim: 512
+  Train samples: 182357
+  Dev samples: 140950
+  Device: cuda
+============================================================
+Egitim tamamlandi. En iyi EER: 0.3384%
+Model: D:\Mahmud\models\hybrid_wavlm_ds4_fp16_ssps\anti-spoofing_model.pt
+
+
+------------------------------------------------------------------
+
+PS D:\Mahmud> python test_hybrid.py --config wavlm_ds4_fp16_ssps
+
+============================================================
+HYBRID MODEL TESTING
+============================================================
+Config: wavlm_ds4_fp16_ssps
+============================================================
+
+============================================================
+TESTING: WavLM (4x downsample, fp16) + SSPS
+============================================================
+  Model: D:\Mahmud\models\hybrid_wavlm_ds4_fp16_ssps\anti-spoofing_model.pt
+  WavLM: D:\Mahmud\features\WAVLM_LARGE_L8_ds4_fp16
+  SSPS: D:\Mahmud\features\SSPS_SimCLR_ECAPA
+============================================================
+[INFO] WavLM dim: 1024, SSPS dim: 512, Samples: 680774
+  Backbone: SKATDNN
+
+  Device: cuda
+  Eval samples: 680774
+============================================================
+
+Eval: 100%|████████████████████████████████████████████████████████████████| 10638/10638 [08:13<00:00, 21.57it/s] 
+
+============================================================
+EVAL EER: 6.5082%
+============================================================
+Scores saved: D:\Mahmud\models\hybrid_wavlm_ds4_fp16_ssps\eval_scores.txt
+
+Statistikler:
+  Total: 680774
+  Bonafide: 138688
+  Spoof: 542086
+  Bonafide score mean: 0.8398
+  Spoof score mean: -0.9185
+
+
+  -------------------------------------------------
+  ============================================================
+PS D:\Mahmud> python test_hybrid.py --config hubert_fullres_fp16_ssps 
+
+============================================================
+HYBRID MODEL TESTING
+============================================================
+Config: hubert_fullres_fp16_ssps
+============================================================
+
+============================================================
+TESTING: HuBERT (Full Resolution, fp16) + SSPS
+============================================================
+  Model: D:\Mahmud\models\hybrid_hubert_fullres_fp16_ssps\anti-spoofing_model.pt
+  Audio Feature: HuBERT
+  Audio Feature Path: D:\Mahmud\features\HUBERT_LARGE_L8_fullres_fp16
+  SSPS: D:\Mahmud\features\SSPS_SimCLR_ECAPA
+============================================================
+[INFO] WavLM dim: 1024, SSPS dim: 512, Samples: 680774
+  Backbone: SKATDNN
+
+  Device: cuda
+  Eval samples: 680774
+============================================================
+
+Eval: 100%|██████████████████████████████████████████████████████████| 10638/10638 [33:57<00:00,  5.22it/s] 
+
+============================================================
+EVAL EER: 8.2083%
+============================================================
+Scores saved: D:\Mahmud\models\hybrid_hubert_fullres_fp16_ssps\eval_scores.txt
+
+Statistikler:
+  Total: 680774
+  Bonafide: 138688
+  Spoof: 542086
+  Bonafide score mean: 0.9042
+  Spoof score mean: -0.5592

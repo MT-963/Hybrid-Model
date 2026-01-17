@@ -53,6 +53,16 @@ FEATURE_CONFIGS = {
         "backbone_type": "skatdnn",  # "skatdnn" veya "next_tdnn"
     },
     
+    # HuBERT Full Resolution + SSPS with SKA-TDNN
+    "hubert_fullres_fp16_ssps": {
+        "name": "HuBERT (Full Resolution, fp16) + SSPS",
+        "hubert_path": PROJECT_ROOT / "features" / "HUBERT_LARGE_L8_fullres_fp16",
+        "ssps_path": PROJECT_ROOT / "features" / "SSPS_SimCLR_ECAPA",
+        "feat_len": 750,  # Full resolution
+        "disk_space": "~254 GB",
+        "backbone_type": "skatdnn",  # "skatdnn" veya "next_tdnn"
+    },
+    
 
 
 }
@@ -121,7 +131,10 @@ def print_config():
     print("=" * 60)
     print(f"  Config: {ACTIVE_CONFIG}")
     print(f"  Name: {cfg['name']}")
-    print(f"  WavLM Path: {cfg['wavlm_path']}")
+    if 'wavlm_path' in cfg:
+        print(f"  WavLM Path: {cfg['wavlm_path']}")
+    if 'hubert_path' in cfg:
+        print(f"  HuBERT Path: {cfg['hubert_path']}")
     print(f"  SSPS Path: {cfg['ssps_path']}")
     print(f"  Feature Length: {cfg['feat_len']}")
     print(f"  Backbone Type: {cfg.get('backbone_type', 'skatdnn')}")

@@ -312,15 +312,27 @@ def train(config_name: str) -> None:
     print("=" * 60)
     print(f"TRAINING: {cfg['name']}")
     print("=" * 60)
-    print(f"  WavLM: {cfg['wavlm_path']}")
+    
+    # Determine audio feature path (WavLM or HuBERT)
+    if 'hubert_path' in cfg:
+        audio_feat_path = cfg['hubert_path']
+        feat_type = "HuBERT"
+    elif 'wavlm_path' in cfg:
+        audio_feat_path = cfg['wavlm_path']
+        feat_type = "WavLM"
+    else:
+        raise ValueError("Config'de 'wavlm_path' veya 'hubert_path' bulunamadi!")
+    
+    print(f"  Audio Feature: {feat_type}")
+    print(f"  Audio Feature Path: {audio_feat_path}")
     print(f"  SSPS: {cfg['ssps_path']}")
     print(f"  Feat Len: {cfg['feat_len']}")
     print(f"  Output: {out_fold}")
     print("=" * 60)
     
     # Check paths
-    if not cfg['wavlm_path'].exists():
-        raise FileNotFoundError(f"WavLM features bulunamadi: {cfg['wavlm_path']}")
+    if not audio_feat_path.exists():
+        raise FileNotFoundError(f"{feat_type} features bulunamadi: {audio_feat_path}")
     if not cfg['ssps_path'].exists():
         raise FileNotFoundError(f"SSPS features bulunamadi: {cfg['ssps_path']}")
 
@@ -336,7 +348,7 @@ def train(config_name: str) -> None:
 
     # Datasets
     train_ds = HybridFeatureDataset(
-        wavlm_root=cfg['wavlm_path'],
+        wavlm_root=audio_feat_path,  # Generic: works for both WavLM and HuBERT
         ssps_root=cfg['ssps_path'],
         protocol_file=PROTOCOLS["train"],
         split="train",
@@ -344,7 +356,7 @@ def train(config_name: str) -> None:
         padding=params["padding"],
     )
     dev_ds = HybridFeatureDataset(
-        wavlm_root=cfg['wavlm_path'],
+        wavlm_root=audio_feat_path,  # Generic: works for both WavLM and HuBERT
         ssps_root=cfg['ssps_path'],
         protocol_file=PROTOCOLS["dev"],
         split="dev",
