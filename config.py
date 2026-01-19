@@ -55,12 +55,43 @@ FEATURE_CONFIGS = {
     
     # HuBERT Full Resolution + SSPS with SKA-TDNN
     "hubert_fullres_fp16_ssps": {
-        "name": "HuBERT (Full Resolution, fp16) + SSPS",
+        "name": "HuBERT (Full Resolution, fp16) + SSPS + SKA-TDNN",
         "hubert_path": PROJECT_ROOT / "features" / "HUBERT_LARGE_L8_fullres_fp16",
         "ssps_path": PROJECT_ROOT / "features" / "SSPS_SimCLR_ECAPA",
         "feat_len": 750,  # Full resolution
         "disk_space": "~254 GB",
-        "backbone_type": "skatdnn",  # "skatdnn" veya "next_tdnn"
+        "backbone_type": "skatdnn",  # SKA-TDNN kullanıyor
+        "use_ssps": True,  # SSPS kullanılıyor
+    },
+    
+    # WavLM + SKA-TDNN (SSPS olmadan)
+    "wavlm_ds4_fp16_skatdnn": {
+        "name": "WavLM (4x downsample, fp16) + SKA-TDNN (no SSPS)",
+        "wavlm_path": PROJECT_ROOT / "features" / "WAVLM_LARGE_L8_ds4_fp16",
+        "feat_len": 187,  # 750/4 ~ 187
+        "disk_space": "~65 GB",
+        "backbone_type": "skatdnn",
+        "use_ssps": False,  # SSPS kullanma
+    },
+    
+    # WavLM Full Resolution + SKA-TDNN (SSPS olmadan)
+    "wavlm_fullres_fp16_skatdnn": {
+        "name": "WavLM (Full Resolution, fp16) + SKA-TDNN (no SSPS)",
+        "wavlm_path": PROJECT_ROOT / "features" / "WAVLM_LARGE_L8_fullres_fp16",
+        "feat_len": 750,  # Full resolution
+        "disk_space": "~127 GB",
+        "backbone_type": "skatdnn",
+        "use_ssps": False,  # SSPS kullanma
+    },
+    
+    # HuBERT + SKA-TDNN (SSPS olmadan)
+    "hubert_fullres_fp16_skatdnn": {
+        "name": "HuBERT (Full Resolution, fp16) + SKA-TDNN (no SSPS)",
+        "hubert_path": PROJECT_ROOT / "features" / "HUBERT_LARGE_L8_fullres_fp16",
+        "feat_len": 750,  # Full resolution
+        "disk_space": "~127 GB",
+        "backbone_type": "skatdnn",
+        "use_ssps": False,  # SSPS kullanma
     },
     
 

@@ -54,32 +54,43 @@ class HybridFeatureDataset(Dataset):
     def __init__(
         self,
         wavlm_root: Path,
-        ssps_root: Path,
-        protocol_file: Path,
-        split: str,
+        ssps_root: Path = None,
+        protocol_file: Path = None,
+        split: str = None,
         feat_len: int = 750,
         padding: str = "repeat",
+        use_ssps: bool = True,
     ) -> None:
         super().__init__()
         self.wavlm_root = Path(wavlm_root)
-        self.ssps_root = Path(ssps_root)
+        self.ssps_root = Path(ssps_root) if ssps_root is not None else None
         self.split = split
         self.feat_len = int(feat_len)
         self.padding = padding
+        self.use_ssps = use_ssps
 
-        if not protocol_file.exists():
+        if protocol_file is not None and not protocol_file.exists():
             raise FileNotFoundError(f"Protokol bulunamadi: {protocol_file}")
 
-        self.items = self._read_protocol(protocol_file)
+        if protocol_file is not None:
+            self.items = self._read_protocol(protocol_file)
+        else:
+            self.items = []
 
         # Check dimensions
         sample_w = torch.load(self._feat_path(self.items[0][0], "wavlm"), map_location="cpu")
         self.wavlm_dim = sample_w.shape[0]
         
-        sample_s = torch.load(self._feat_path(self.items[0][0], "ssps"), map_location="cpu")
-        self.ssps_dim = sample_s.shape[0] if sample_s.ndim == 1 else sample_s.shape[-1]
+        if self.use_ssps and self.ssps_root is not None:
+            sample_s = torch.load(self._feat_path(self.items[0][0], "ssps"), map_location="cpu")
+            self.ssps_dim = sample_s.shape[0] if sample_s.ndim == 1 else sample_s.shape[-1]
+        else:
+            self.ssps_dim = None
         
-        print(f"[INFO] WavLM dim: {self.wavlm_dim}, SSPS dim: {self.ssps_dim}, Samples: {len(self.items)}")
+        if self.use_ssps:
+            print(f"[INFO] WavLM dim: {self.wavlm_dim}, SSPS dim: {self.ssps_dim}, Samples: {len(self.items)}")
+        else:
+            print(f"[INFO] WavLM dim: {self.wavlm_dim}, SSPS: DISABLED, Samples: {len(self.items)}")
 
     def _read_protocol(self, path: Path):
         text = path.read_text(encoding="utf-8", errors="ignore").strip()
@@ -142,7 +153,12 @@ class HybridFeatureDataset(Dataset):
         return best_j
 
     def _feat_path(self, utt_id: str, branch: str) -> Path:
-        root = self.wavlm_root if branch == "wavlm" else self.ssps_root
+        if branch == "wavlm":
+            root = self.wavlm_root
+        else:
+            if self.ssps_root is None:
+                raise ValueError("SSPS root not set but SSPS feature requested!")
+            root = self.ssps_root
         p = root / self.split / f"{utt_id}.pt"
         if not p.exists():
             alt = list(root.glob(f"**/{self.split}/{utt_id}.pt"))
@@ -173,13 +189,16 @@ class HybridFeatureDataset(Dataset):
                 w = w.float()
             w = self._pad(w)
             
-            s = torch.load(self._feat_path(utt_id, "ssps"), map_location="cpu")
-            if s.dtype == torch.float16:
-                s = s.float()
-            if s.ndim == 2:
-                s = s.mean(dim=-1)
-            
-            return w, s, utt_id, int(label)
+            if self.use_ssps and self.ssps_root is not None:
+                s = torch.load(self._feat_path(utt_id, "ssps"), map_location="cpu")
+                if s.dtype == torch.float16:
+                    s = s.float()
+                if s.ndim == 2:
+                    s = s.mean(dim=-1)
+                return w, s, utt_id, int(label)
+            else:
+                # SSPS olmadan sadece dummy tensor döndür (kullanılmayacak)
+                return w, torch.zeros(1), utt_id, int(label)
         except Exception:
             return None
 
@@ -198,16 +217,19 @@ class HybridFeatureDataset(Dataset):
 # HYBRID MODEL
 # =============================================================================
 class HybridModel(nn.Module):
-    def __init__(self, wavlm_dim: int, ssps_dim: int, emb_dim: int = 256, feat_len: int = 750, backbone_type: str = "skatdnn"):
+    def __init__(self, wavlm_dim: int, ssps_dim: int = None, emb_dim: int = 256, feat_len: int = 750, backbone_type: str = "skatdnn", use_ssps: bool = True):
         """
         Args:
             wavlm_dim: WavLM/HuBERT feature dimension
-            ssps_dim: SSPS feature dimension
+            ssps_dim: SSPS feature dimension (None if not using SSPS)
             emb_dim: Embedding dimension
             feat_len: Feature sequence length
             backbone_type: "skatdnn" or "next_tdnn"
+            use_ssps: Whether to use SSPS features (default: True)
         """
         super().__init__()
+        
+        self.use_ssps = use_ssps
         
         # Select backbone based on type
         if backbone_type == "skatdnn":
@@ -235,18 +257,24 @@ class HybridModel(nn.Module):
         self.wavlm_pool = nn.AdaptiveAvgPool1d(1)
         self.wavlm_fc = nn.Linear(wavlm_out_dim, emb_dim)
         
-        self.ssps_fc = nn.Sequential(
-            nn.Linear(ssps_dim, emb_dim),
-            nn.BatchNorm1d(emb_dim),
-            nn.ReLU(inplace=True),
-        )
-        
-        self.attention = nn.Sequential(
-            nn.Linear(emb_dim * 2, emb_dim),
-            nn.Tanh(),
-            nn.Linear(emb_dim, 2),
-            nn.Softmax(dim=-1)
-        )
+        if self.use_ssps:
+            if ssps_dim is None:
+                raise ValueError("use_ssps=True but ssps_dim is None!")
+            self.ssps_fc = nn.Sequential(
+                nn.Linear(ssps_dim, emb_dim),
+                nn.BatchNorm1d(emb_dim),
+                nn.ReLU(inplace=True),
+            )
+            
+            self.attention = nn.Sequential(
+                nn.Linear(emb_dim * 2, emb_dim),
+                nn.Tanh(),
+                nn.Linear(emb_dim, 2),
+                nn.Softmax(dim=-1)
+            )
+        else:
+            self.ssps_fc = None
+            self.attention = None
         
         self.classifier = nn.Sequential(
             nn.Linear(emb_dim, emb_dim),
@@ -258,17 +286,20 @@ class HybridModel(nn.Module):
         
         self._emb_dim = emb_dim
 
-    def forward(self, w: torch.Tensor, s: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, w: torch.Tensor, s: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor]:
         w_out = self.wavlm_backbone(w)
         if w_out.ndim == 3:
             w_out = self.wavlm_pool(w_out).squeeze(-1)
         w_emb = self.wavlm_fc(w_out)
         
-        s_emb = self.ssps_fc(s)
-        
-        concat = torch.cat([w_emb, s_emb], dim=-1)
-        attn_weights = self.attention(concat)
-        fused = attn_weights[:, 0:1] * w_emb + attn_weights[:, 1:2] * s_emb
+        if self.use_ssps and s is not None:
+            s_emb = self.ssps_fc(s)
+            concat = torch.cat([w_emb, s_emb], dim=-1)
+            attn_weights = self.attention(concat)
+            fused = attn_weights[:, 0:1] * w_emb + attn_weights[:, 1:2] * s_emb
+        else:
+            # SSPS olmadan sadece WavLM/HuBERT kullan
+            fused = w_emb
         
         emb = F.normalize(fused, dim=1)
         logits = self.classifier(fused)
@@ -300,6 +331,10 @@ def test(config_name: str) -> None:
     else:
         raise ValueError("Config'de 'wavlm_path' veya 'hubert_path' bulunamadi!")
     
+    # Check if SSPS is used
+    use_ssps = cfg.get('use_ssps', True)  # Default: True for backward compatibility
+    ssps_path = cfg.get('ssps_path', None)
+    
     # Print config
     print("=" * 60)
     print(f"TESTING: {cfg['name']}")
@@ -307,7 +342,10 @@ def test(config_name: str) -> None:
     print(f"  Model: {model_path}")
     print(f"  Audio Feature: {feat_type}")
     print(f"  Audio Feature Path: {audio_feat_path}")
-    print(f"  SSPS: {cfg['ssps_path']}")
+    if use_ssps:
+        print(f"  SSPS: {ssps_path}")
+    else:
+        print(f"  SSPS: DISABLED")
     print("=" * 60)
     
     # Check paths
@@ -315,8 +353,8 @@ def test(config_name: str) -> None:
         raise FileNotFoundError(f"Model bulunamadi: {model_path}")
     if not audio_feat_path.exists():
         raise FileNotFoundError(f"{feat_type} features bulunamadi: {audio_feat_path}")
-    if not cfg['ssps_path'].exists():
-        raise FileNotFoundError(f"SSPS features bulunamadi: {cfg['ssps_path']}")
+    if use_ssps and ssps_path is not None and not ssps_path.exists():
+        raise FileNotFoundError(f"SSPS features bulunamadi: {ssps_path}")
 
     # Setup
     os.environ["CUDA_VISIBLE_DEVICES"] = params["gpu"]
@@ -326,10 +364,11 @@ def test(config_name: str) -> None:
     # Dataset
     eval_ds = HybridFeatureDataset(
         wavlm_root=audio_feat_path,  # Generic: works for both WavLM and HuBERT
-        ssps_root=cfg['ssps_path'],
+        ssps_root=ssps_path if use_ssps else None,
         protocol_file=PROTOCOLS["eval"],
         split="eval",
         feat_len=cfg['feat_len'],
+        use_ssps=use_ssps,
         padding=params["padding"],
     )
 
@@ -343,10 +382,11 @@ def test(config_name: str) -> None:
     print(f"  Backbone: {backbone_type.upper()}")
     model = HybridModel(
         wavlm_dim=eval_ds.wavlm_dim,
-        ssps_dim=eval_ds.ssps_dim,
+        ssps_dim=eval_ds.ssps_dim if use_ssps else None,
         emb_dim=params["emb_dim"],
         feat_len=cfg['feat_len'],
         backbone_type=backbone_type,
+        use_ssps=use_ssps,
     ).to(device)
     
     # Load weights
@@ -371,7 +411,8 @@ def test(config_name: str) -> None:
             if batch is None:
                 continue
             w, s, uids, y = batch
-            w, s, y = w.to(device), s.to(device), y.to(device)
+            w, y = w.to(device), y.to(device)
+            s = s.to(device) if use_ssps else None
             
             emb, logits = model(w, s)
             _, logits = aux(emb, y)

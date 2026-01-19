@@ -108,3 +108,89 @@ Statistikler:
   Spoof: 542086
   Bonafide score mean: 0.9042
   Spoof score mean: -0.5592
+
+
+  ----------------------------------
+
+  PS D:\Mahmud> python test_hybrid.py --config wavlm_ds4_fp16_skatdnn
+
+============================================================
+HYBRID MODEL TESTING
+============================================================
+Config: wavlm_ds4_fp16_skatdnn
+============================================================
+
+============================================================
+TESTING: WavLM (4x downsample, fp16) + SKA-TDNN (no SSPS)
+============================================================
+  Model: D:\Mahmud\models\hybrid_wavlm_ds4_fp16_skatdnn\anti-spoofing_model.pt
+  Audio Feature: WavLM
+  Audio Feature Path: D:\Mahmud\features\WAVLM_LARGE_L8_ds4_fp16
+  SSPS: DISABLED
+============================================================
+[INFO] WavLM dim: 1024, SSPS: DISABLED, Samples: 680774
+  Backbone: SKATDNN
+
+  Device: cuda
+  Eval samples: 680774
+============================================================
+
+Eval: 100%|██████████████████████████████████████████████████████████| 10638/10638 [08:16<00:00, 21.42it/s] 
+
+============================================================
+EVAL EER: 6.1489%
+============================================================
+Scores saved: D:\Mahmud\models\hybrid_wavlm_ds4_fp16_skatdnn\eval_scores.txt
+
+Statistikler:
+  Total: 680774
+  Bonafide: 138688
+  Spoof: 542086
+  Bonafide score mean: 0.8970
+  Spoof score mean: -0.7680
+
+
+-------------------------------
+
+
+PS D:\Mahmud> python test_hybrid.py --config hubert_fullres_fp16_skatdnn 
+
+============================================================
+HYBRID MODEL TESTING
+============================================================
+Config: hubert_fullres_fp16_skatdnn
+============================================================
+
+============================================================
+TESTING: HuBERT (Full Resolution, fp16) + SKA-TDNN (no SSPS)
+============================================================
+  Model: D:\Mahmud\models\hybrid_hubert_fullres_fp16_skatdnn\anti-spoofing_model.pt
+  Audio Feature: HuBERT
+  Audio Feature Path: D:\Mahmud\features\HUBERT_LARGE_L8_fullres_fp16
+  SSPS: DISABLED
+============================================================
+[INFO] WavLM dim: 1024, SSPS: DISABLED, Samples: 680774
+  Backbone: SKATDNN
+
+  Device: cuda
+  Eval samples: 680774
+============================================================
+
+Eval: 100%|██████████████████████████████████████████████████████████| 10638/10638 [34:02<00:00,  5.21it/s] 
+
+============================================================
+EVAL EER: 8.8148%
+============================================================
+Scores saved: D:\Mahmud\models\hybrid_hubert_fullres_fp16_skatdnn\eval_scores.txt
+
+Statistikler:
+  Total: 680774
+  Bonafide: 138688
+  Spoof: 542086
+  Bonafide score mean: 0.8992
+  Spoof score mean: -0.6183
+
+
+  ---------------------------------
+
+  
