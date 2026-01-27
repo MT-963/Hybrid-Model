@@ -1,7 +1,6 @@
 """
-ASVspoof5 Feature Extraction using SSPS (SimCLR+ECAPA-TDNN) - Simplified Version.
-
-sslsv framework'ünün s3prl bağımlılığı olmadan doğrudan ECAPA-TDNN modelini yükler.
+ASVspoof5 Feature Extraction using SSPS (SimCLR+ECAPA-TDNN) - Frame-Level Version.
+Pooling iptal edildi, artik zaman serisi (frame-level features) doner.
 """
 
 from __future__ import annotations
@@ -20,7 +19,7 @@ from tqdm import tqdm
 from config import PROJECT_ROOT
 
 # ============================================================================
-# ECAPA-TDNN Model (sslsv'den alındı, bağımsız çalışır)
+# ECAPA-TDNN Model (Pooling iptal edilmiş versiyon)
 # ============================================================================
 
 class Conv1dSamePaddingReflect(nn.Module):
@@ -39,7 +38,6 @@ class Conv1dSamePaddingReflect(nn.Module):
         x = F.pad(x, (padding, padding), mode="reflect")
         return self.conv(x)
 
-
 class TDNNBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, dilation, groups=1):
         super().__init__()
@@ -49,7 +47,6 @@ class TDNNBlock(nn.Module):
 
     def forward(self, x):
         return self.norm(self.activation(self.conv(x)))
-
 
 class Res2NetBlock(nn.Module):
     def __init__(self, in_channels, out_channels, scale=8, kernel_size=3, dilation=1):
@@ -72,7 +69,6 @@ class Res2NetBlock(nn.Module):
             y.append(y_i)
         return torch.cat(y, dim=1)
 
-
 class SEBlock(nn.Module):
     def __init__(self, in_channels, se_channels, out_channels):
         super().__init__()
@@ -86,7 +82,6 @@ class SEBlock(nn.Module):
         s = self.relu(self.conv1(s))
         s = self.sigmoid(self.conv2(s))
         return s * x
-
 
 class SERes2NetBlock(nn.Module):
     def __init__(self, in_channels, out_channels, res2net_scale=8, se_channels=128, kernel_size=1, dilation=1, groups=1):
@@ -105,33 +100,15 @@ class SERes2NetBlock(nn.Module):
         x = self.se_block(x)
         return x + residual
 
-
-class AttentiveStatisticsPooling(nn.Module):
-    def __init__(self, channels, attention_channels=128, global_context=True):
-        super().__init__()
-        self.global_context = global_context
-        in_channels = channels * 3 if global_context else channels
-        self.tdnn = TDNNBlock(in_channels, attention_channels, 1, 1)
-        self.tanh = nn.Tanh()
-        self.conv = Conv1dSamePaddingReflect(attention_channels, channels, kernel_size=1)
-
-    def forward(self, x):
-        if self.global_context:
-            L = x.size(-1)
-            mean = x.mean(dim=2, keepdim=True).repeat(1, 1, L)
-            std = x.std(dim=2, keepdim=True).clamp(1e-12).repeat(1, 1, L)
-            attn = torch.cat([x, mean, std], dim=1)
-        else:
-            attn = x
-        attn = self.conv(self.tanh(self.tdnn(attn)))
-        attn = F.softmax(attn, dim=2)
-        mean = (attn * x).sum(dim=2)
-        std = torch.sqrt(((attn * (x - mean.unsqueeze(2)).pow(2)).sum(dim=2)).clamp(1e-12))
-        return torch.cat((mean, std), dim=1).unsqueeze(2)
-
+# AttentiveStatisticsPooling sınıfına artık ihtiyacımız yok ama model yüklerken hata almamak için 
+# sınıf tanımı kalabilir veya init içinde kullanılmayabilir. 
+# Aşağıda ECAPATDNN içinde kullanımını kaldırdım.
 
 class ECAPATDNN(nn.Module):
-    """ECAPA-TDNN encoder - channels: [1024, 1024, 1024, 1024, 3072]"""
+    """
+    ECAPA-TDNN encoder (Pooling İptal Edildi)
+    Çıktı boyutu: (Batch, 3072, Time)
+    """
     def __init__(self, mel_n_mels=80, encoder_dim=192, channels=[1024, 1024, 1024, 1024, 3072]):
         super().__init__()
         self.encoder_dim = encoder_dim
@@ -151,9 +128,11 @@ class ECAPATDNN(nn.Module):
             self.blocks.append(SERes2NetBlock(channels[i-1], channels[i], kernel_size=kernel_sizes[i], dilation=dilations[i]))
         
         self.mfa = TDNNBlock(channels[-1], channels[-1], kernel_sizes[-1], dilations[-1])
-        self.asp = AttentiveStatisticsPooling(channels[-1])
-        self.asp_bn = nn.BatchNorm1d(channels[-1] * 2)
-        self.fc = Conv1dSamePaddingReflect(channels[-1] * 2, encoder_dim, kernel_size=1)
+        
+        # --- POOLING VE SONRASI İPTAL EDİLDİ ---
+        # self.asp = AttentiveStatisticsPooling(channels[-1])
+        # self.asp_bn = nn.BatchNorm1d(channels[-1] * 2)
+        # self.fc = Conv1dSamePaddingReflect(channels[-1] * 2, encoder_dim, kernel_size=1)
 
     def forward(self, x):
         # x: (B, L) raw waveform
@@ -169,18 +148,22 @@ class ECAPATDNN(nn.Module):
             x = layer(x)
             feats.append(x)
         
-        x = torch.cat(feats[1:], dim=1)
+        # Multi-scale feature aggregation (Son 3 bloğun çıktısını birleştirir)
+        x = torch.cat(feats[1:], dim=1) 
         x = self.mfa(x)
-        x = self.asp(x)
-        x = self.asp_bn(x)
-        x = self.fc(x)
-        x = x.squeeze(dim=2)
+        
+        # --- POOLING YOK ---
+        # Artık x: (Batch, 3072, Time) boyutunda
+        # x = self.asp(x)
+        # x = self.asp_bn(x)
+        # x = self.fc(x)
+        # x = x.squeeze(dim=2)
         
         return x
 
 
 class SimCLRModel(nn.Module):
-    """SimCLR wrapper around ECAPA-TDNN encoder."""
+    """SimCLR wrapper."""
     def __init__(self, encoder_dim=192, channels=[1024, 1024, 1024, 1024, 3072], mel_n_mels=80):
         super().__init__()
         self.encoder = ECAPATDNN(mel_n_mels=mel_n_mels, encoder_dim=encoder_dim, channels=channels)
@@ -190,45 +173,57 @@ class SimCLRModel(nn.Module):
 
 
 def load_ssps_checkpoint(ckpt_path: str | Path, device: str = "cuda"):
-    """Load SSPS checkpoint and return model."""
+    """Load SSPS checkpoint and return model WITHOUT pooling layers."""
     ckpt_path = Path(ckpt_path)
     
-    # Model config from ssps_kmeans_25k_uni-1 (checkpoint'tan alınan değerler)
+    # Model config
     channels = [1024, 1024, 1024, 1024, 3072]
-    encoder_dim = 512  # Checkpoint'ta 512
-    mel_n_mels = 40    # Checkpoint'ta 40
+    encoder_dim = 512 
+    mel_n_mels = 40  # Checkpoint uyumluluğu için
     
     model = SimCLRModel(encoder_dim=encoder_dim, channels=channels, mel_n_mels=mel_n_mels).to(device)
     
     if ckpt_path.exists():
+        print(f">>> Checkpoint yükleniyor: {ckpt_path}")
         checkpoint = torch.load(ckpt_path, map_location=device, weights_only=False)
         
-        # Extract encoder weights from the checkpoint
         state_dict = checkpoint.get("model", checkpoint)
         
-        # Filter only encoder weights
-        encoder_state = {}
+        # Yükleme yaparken 'asp' ve 'fc' katmanları kodda olmadığı için (yorum satırına aldık)
+        # strict=False kullanmak ZORUNLUDUR. PyTorch, checkpointte olup modelde olmayan
+        # ağırlıkları (asp, fc) görmezden gelecektir. Bu istediğimiz bir şey.
+        
+        # Prefix temizliği
+        new_state_dict = {}
         for k, v in state_dict.items():
             if k.startswith("encoder."):
-                new_key = k.replace("encoder.", "encoder.")
-                encoder_state[new_key] = v
+                # SimCLRModel wrapper kullandığımız için 'encoder.' prefixi kalmalı
+                new_state_dict[k] = v
+            else:
+                 # Doğrudan ECAPA ise prefix eklenebilir veya olduğu gibi
+                 new_state_dict[k] = v
+
+        missing, unexpected = model.load_state_dict(new_state_dict, strict=False)
         
-        if encoder_state:
-            model.load_state_dict(encoder_state, strict=False)
-            print(f"[OK] Checkpoint yuklendi: {ckpt_path}")
-        else:
-            # Try loading directly
-            model.load_state_dict(state_dict, strict=False)
-            print(f"[OK] Checkpoint yuklendi (direct): {ckpt_path}")
+        # Pooling katmanlarını sildiğimiz için 'unexpected_keys' içinde asp ve fc görmemiz normaldir.
+        # 'missing_keys' boş olmalı (veya sadece sildiğimiz katmanlar olmamalı).
+        if missing:
+            # Sadece kritik katmanlar eksik mi diye bak
+            critical_missing = [k for k in missing if "blocks" in k or "mfa" in k]
+            if critical_missing:
+                print(f"[WARN] Kritik katmanlar eksik: {critical_missing[:3]}...")
+        
+        print("[OK] Model ağırlıkları yüklendi (Pooling katmanları hariç).")
+        
     else:
-        print(f"[WARN] Checkpoint bulunamadi: {ckpt_path}")
+        print(f"[ERR] Checkpoint bulunamadi: {ckpt_path}")
+        sys.exit(1)
     
     model.eval()
     for p in model.parameters():
         p.requires_grad_(False)
     
     return model
-
 
 def extract_partition(
     *,
@@ -239,7 +234,7 @@ def extract_partition(
     checkpoint_path: str | Path,
     device: str = "cuda",
 ):
-    """Extract SSPS embeddings for one partition."""
+    """Extract frame-level features."""
     protocol_dir = Path(protocol_dir)
     audio_root = Path(audio_root)
     output_dir = Path(output_dir)
@@ -257,16 +252,10 @@ def extract_partition(
 
     proto_fp = protocol_dir / proto_map[part]
     audio_dir = audio_root / audio_map[part]
-    
-    if not proto_fp.is_file():
-        raise FileNotFoundError(f"Protocol not found: {proto_fp}")
-    if not audio_dir.is_dir():
-        raise FileNotFoundError(f"Audio dir not found: {audio_dir}")
-
     out_dir = output_dir / part
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"\n>>> SSPS modeli yukleniyor...")
+    print(f"\n>>> SSPS (No Pooling) modeli yukleniyor...")
     model = load_ssps_checkpoint(checkpoint_path, device)
     sr_model = 16000
 
@@ -274,6 +263,7 @@ def extract_partition(
         lines = f.readlines()
         if lines[0].lower().startswith("speaker") or "flac" in lines[0].lower():
             lines = lines[1:]
+        # Dosya isminin sütununu kontrol et (Genelde 2. sütun: index 1)
         utt_ids: List[str] = [ln.split()[1] for ln in lines if ln.strip()]
 
     print(f">>> {part} partition: {len(utt_ids)} utterance islenecek")
@@ -285,60 +275,60 @@ def extract_partition(
 
         wav_fp = audio_dir / f"{utt_id}.flac"
         if not wav_fp.is_file():
+            # tqdm bozmasın diye write kullan
             tqdm.write(f"[MISSING] {wav_fp}")
             continue
 
-        wav, sr = torchaudio.load(str(wav_fp))
+        try:
+            wav, sr = torchaudio.load(str(wav_fp))
+        except Exception as e:
+            tqdm.write(f"[ERR] Dosya okunamadi {wav_fp}: {e}")
+            continue
+
         if sr != sr_model:
             wav = torchaudio.functional.resample(wav, sr, sr_model)
+        
+        # Mono yap
         if wav.shape[0] > 1:
             wav = wav.mean(0, keepdim=True)
-        wav = wav.squeeze(0).to(device)
+            
+        wav = wav.squeeze(0).to(device) # (L,)
 
         with torch.inference_mode():
-            emb = model(wav)  # (1, D)
+            # Çıktı: (1, 3072, Time)
+            emb = model(wav)
         
+        # Kaydederken cpu'ya al ve gereksiz batch boyutunu at
+        # Sonuç boyutu: (3072, Time)
         torch.save(emb.squeeze(0).cpu(), out_fp)
-
 
 if __name__ == "__main__":
     import argparse
     
-    if len(sys.argv) > 1:
-        parser = argparse.ArgumentParser("SSPS Feature Extractor (Simplified)")
-        parser.add_argument("--part", choices=["train", "dev", "eval"], required=True)
-        parser.add_argument("--protocol_dir", required=True)
-        parser.add_argument("--audio_root", required=True)
-        parser.add_argument("--output_dir", required=True)
-        parser.add_argument("--checkpoint", required=True)
-        parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
-        args = parser.parse_args()
-        
-        extract_partition(
-            part=args.part,
-            protocol_dir=args.protocol_dir,
-            audio_root=args.audio_root,
-            output_dir=args.output_dir,
-            checkpoint_path=args.checkpoint,
-            device=args.device,
-        )
-    else:
-        # Interactive mode
-        CHECKPOINT = "D:/Mahmud/models/ssps/ssps_kmeans_25k_uni-1/checkpoints/model_avg.pt"
-        
-        # ASVspoof5 dataset lokasyonu
-        ASVSPOOF5_ROOT = "D:/Mahmud/Datasets/asvspoof5"
-        
-        PARAMS = {
-            "protocol_dir": ASVSPOOF5_ROOT,  # Protokol dosyaları burada
-            "audio_root": ASVSPOOF5_ROOT,    # Audio dosyaları da burada
-            "output_dir": f"{PROJECT_ROOT}/features/SSPS_SimCLR_ECAPA",
-            "checkpoint_path": CHECKPOINT,
-            "device": "cuda" if torch.cuda.is_available() else "cpu",
-        }
-        
-        # train, dev ve eval için feature çıkar
-        for _part in ["train", "dev", "eval"]:
-            print(f"\n>>> Processing {_part}…")
-            extract_partition(part=_part, **PARAMS)
-
+    parser = argparse.ArgumentParser(description="SSPS Frame-Level Feature Extraction")
+    parser.add_argument("--part", type=str, choices=["train", "dev", "eval"], required=True,
+                        help="Partition to extract: train, dev, or eval")
+    parser.add_argument("--checkpoint", type=str, 
+                        default="D:/Mahmud/models/ssps_kmeans_25k_uni-1/checkpoints/model_avg.pt",
+                        help="Path to SSPS checkpoint")
+    parser.add_argument("--asvspoof5_root", type=str, default="D:/Mahmud/Datasets/asvspoof5",
+                        help="Root directory of ASVspoof5 dataset")
+    parser.add_argument("--output_dir", type=str, 
+                        default=f"{PROJECT_ROOT}/features/SSPS_FrameLevel",
+                        help="Output directory for features")
+    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu",
+                        help="Device to use (cuda or cpu)")
+    
+    args = parser.parse_args()
+    
+    PARAMS = {
+        "protocol_dir": args.asvspoof5_root,
+        "audio_root": args.asvspoof5_root,
+        "output_dir": args.output_dir,
+        "checkpoint_path": args.checkpoint,
+        "device": args.device,
+    }
+    
+    print(f"Extracting features for partition: {args.part}")
+    extract_partition(part=args.part, **PARAMS)
+    print(f"Done! Features saved to: {args.output_dir}/{args.part}")

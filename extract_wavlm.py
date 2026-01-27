@@ -30,7 +30,7 @@ from tqdm import tqdm
 from config import PROJECT_ROOT
 
 # Paths
-ASVSPOOF5_ROOT = Path("D:/Mahmud/asvspoof5")
+ASVSPOOF5_ROOT = Path("D:/Mahmud/Datasets/asvspoof5")
 
 # Audio paths
 AUDIO_MAP = {

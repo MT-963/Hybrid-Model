@@ -1,0 +1,7 @@
+Dataset,Front End,Back End,Fusion Strategy,EER,min-tDCF,Model Klasör
+ASVspoof5 Eval,WavLM Large L8 (4x Downsample (187)),SKA-TDNN,Attention Fusion (SSPS + Audio),6.5089,0.266085,hybrid_wavlm_ds4_fp16_ssps
+ASVspoof5 Eval,WavLM Large L8 (Full Resolution (750)),SKA-TDNN,Attention Fusion (SSPS + Audio),5.6393,0.279605,hybrid_wavlm_fullres_fp16_ssps
+ASVspoof5 Eval,WavLM Large L8 (4x Downsample (187)),SKA-TDNN,None (Audio Only),6.1489,0.367487,hybrid_wavlm_ds4_fp16_skatdnn
+ASVspoof5 Eval,HuBERT Large L8 (Full Resolution (750)),SKA-TDNN,Attention Fusion (SSPS + Audio),8.2083,0.406180,hybrid_hubert_fullres_fp16_ssps
+ASVspoof5 Eval,HuBERT Large L8 (Full Resolution (750)),SKA-TDNN,None (Audio Only),8.8148,0.537460,hybrid_hubert_fullres_fp16_skatdnn
+

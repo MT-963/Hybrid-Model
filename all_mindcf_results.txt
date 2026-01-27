@@ -1,0 +1,31 @@
+============================================================================================================================================
+TÜM MODELLER İÇİN DETAYLI SONUÇ TABLOSU
+============================================================================================================================================
+
+Dataset              Front End                           Back End        Fusion Strategy                     EER (%)      min-tDCF     Model Klasör                            
+--------------------------------------------------------------------------------------------------------------------------------------------
+ASVspoof5 Eval       WavLM Large L8 (4x Downsample (187)) SKA-TDNN        Attention Fusion (SSPS + Audio)         6.5089%    0.266085  hybrid_wavlm_ds4_fp16_ssps              
+ASVspoof5 Eval       WavLM Large L8 (Full Resolution (750)) SKA-TDNN        Attention Fusion (SSPS + Audio)         5.6393%    0.279605  hybrid_wavlm_fullres_fp16_ssps          
+ASVspoof5 Eval       WavLM Large L8 (4x Downsample (187)) SKA-TDNN        None (Audio Only)                       6.1489%    0.367487  hybrid_wavlm_ds4_fp16_skatdnn           
+ASVspoof5 Eval       HuBERT Large L8 (Full Resolution (750)) SKA-TDNN        Attention Fusion (SSPS + Audio)         8.2083%    0.406180  hybrid_hubert_fullres_fp16_ssps         
+ASVspoof5 Eval       HuBERT Large L8 (Full Resolution (750)) SKA-TDNN        None (Audio Only)                       8.8148%    0.537460  hybrid_hubert_fullres_fp16_skatdnn      
+ASVspoof5 Eval       Wav2Vec2 Large L8 (Full Resolution (750)) SKA-TDNN        Attention Fusion (SSPS + Audio)        11.5915%    0.646631  hybrid_wav2vec2_fullres_fp16_ssps       
+
+============================================================================================================================================
+
+DETAYLI METRİKLER
+================================================================================
+Model Name                                         EER (%)      minDCF       Threshold    Samples   
+--------------------------------------------------------------------------------
+hybrid_wavlm_ds4_fp16_ssps                             6.5089%    0.266085    0.999950     680,774
+hybrid_wavlm_fullres_fp16_ssps                         5.6393%    0.279605    0.999963     680,774
+hybrid_wavlm_ds4_fp16_skatdnn                          6.1489%    0.367487    0.999771     680,774
+hybrid_hubert_fullres_fp16_ssps                        8.2083%    0.406180    0.999956     680,774
+hybrid_hubert_fullres_fp16_skatdnn                     8.8148%    0.537460    0.999979     680,774
+hybrid_wav2vec2_fullres_fp16_ssps                     11.5915%    0.646631    0.999983     680,774
+
+================================================================================
+En iyi model (minDCF): hybrid_wavlm_ds4_fp16_ssps
+  EER: 6.5089%
+  minDCF: 0.266085
+================================================================================

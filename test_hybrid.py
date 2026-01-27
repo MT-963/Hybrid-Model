@@ -321,15 +321,18 @@ def test(config_name: str) -> None:
     model_path = out_fold / "anti-spoofing_model.pt"
     loss_model_path = out_fold / "anti-spoofing_loss_model.pt"
     
-    # Determine audio feature path (WavLM or HuBERT)
+    # Determine audio feature path (WavLM, HuBERT, or Wav2Vec2)
     if 'hubert_path' in cfg:
         audio_feat_path = cfg['hubert_path']
         feat_type = "HuBERT"
     elif 'wavlm_path' in cfg:
         audio_feat_path = cfg['wavlm_path']
         feat_type = "WavLM"
+    elif 'wav2vec2_path' in cfg:
+        audio_feat_path = cfg['wav2vec2_path']
+        feat_type = "Wav2Vec2"
     else:
-        raise ValueError("Config'de 'wavlm_path' veya 'hubert_path' bulunamadi!")
+        raise ValueError("Config'de 'wavlm_path', 'hubert_path' veya 'wav2vec2_path' bulunamadi!")
     
     # Check if SSPS is used
     use_ssps = cfg.get('use_ssps', True)  # Default: True for backward compatibility

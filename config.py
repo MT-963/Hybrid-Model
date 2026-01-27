@@ -16,7 +16,7 @@ from pathlib import Path
 # =============================================================================
 # BASE PATHS - Sistemine göre güncelle
 # =============================================================================
-ASVSPOOF5_ROOT = Path("D:/Mahmud/asvspoof5")
+ASVSPOOF5_ROOT = Path("D:/Mahmud/Datasets/asvspoof5")
 PROJECT_ROOT = Path("D:/Mahmud")
 
 # =============================================================================
@@ -50,7 +50,7 @@ FEATURE_CONFIGS = {
         "ssps_path": PROJECT_ROOT / "features" / "SSPS_SimCLR_ECAPA",
         "feat_len": 750,  # Full resolution
         "disk_space": "~254 GB",
-        "backbone_type": "skatdnn",  # "skatdnn" veya "next_tdnn"
+        "backbone_type": "next_tdnn",  # "skatdnn" veya "next_tdnn"
     },
     
     # HuBERT Full Resolution + SSPS with SKA-TDNN
@@ -94,6 +94,40 @@ FEATURE_CONFIGS = {
         "use_ssps": False,  # SSPS kullanma
     },
     
+    # Wav2Vec2 Large + SSPS + SKA-TDNN
+    "wav2vec2_fullres_fp16_ssps": {
+        "name": "Wav2Vec2 Large (Full Resolution, fp16) + SSPS + SKA-TDNN",
+        "wav2vec2_path": PROJECT_ROOT / "features" / "WAV2VEC2_LARGE_L8_fullres_fp16",
+        "ssps_path": PROJECT_ROOT / "features" / "SSPS_SimCLR_ECAPA",
+        "feat_len": 750,  # Full resolution
+        "disk_space": "~254 GB",
+        "backbone_type": "skatdnn",
+        "use_ssps": True,  # SSPS kullanılıyor
+    },
+    
+    # Sadece SSPS Frame Level + SKA-TDNN (ASVspoof5)
+    "ssps_frame_level_skatdnn": {
+        "name": "SSPS (Frame-Level) Only + SKA-TDNN",
+        "ssps_path": PROJECT_ROOT / "features" / "SSPS_FrameLevel",
+        "feat_len": 750,  # Full resolution (yaklaşık)
+        "disk_space": "~100 GB",
+        "backbone_type": "skatdnn",
+        "use_ssps": False, # Burada SSPS'i fusion için değil, ana feature olarak kullanacağız.
+        "only_ssps": True # Yeni flag: Sadece SSPS kullan
+    },
+    
+    # SSPS Frame Level + SKA-TDNN (ASVspoof 2019 LA)
+    "ssps_2019_la_skatdnn": {
+        "name": "SSPS (Frame-Level) 2019 LA Only + SKA-TDNN",
+        "ssps_path": PROJECT_ROOT / "features" / "SSPS_2019_LA_FrameLevel",
+        "feat_len": 750,  # Full resolution (yaklaşık)
+        "disk_space": "~50 GB",
+        "backbone_type": "skatdnn",
+        "use_ssps": False,
+        "only_ssps": True,
+        "dataset": "asvspoof2019_la"  # Dataset identifier
+    },
+    
 
 
 }
@@ -101,7 +135,7 @@ FEATURE_CONFIGS = {
 # =============================================================================
 # ACTIVE CONFIGURATION - Buradan seç!
 # =============================================================================
-ACTIVE_CONFIG = "wavlm_ds4_fp16_ssps"  # DS4 - best generalization
+ACTIVE_CONFIG = "ssps_2019_la_skatdnn"  # SSPS 2019 LA Only
 
 # =============================================================================
 # TRAINING HYPERPARAMETERS (Anti-Overfitting Config)
@@ -166,7 +200,10 @@ def print_config():
         print(f"  WavLM Path: {cfg['wavlm_path']}")
     if 'hubert_path' in cfg:
         print(f"  HuBERT Path: {cfg['hubert_path']}")
-    print(f"  SSPS Path: {cfg['ssps_path']}")
+    if 'wav2vec2_path' in cfg:
+        print(f"  Wav2Vec2 Path: {cfg['wav2vec2_path']}")
+    if 'ssps_path' in cfg:
+        print(f"  SSPS Path: {cfg['ssps_path']}")
     print(f"  Feature Length: {cfg['feat_len']}")
     print(f"  Backbone Type: {cfg.get('backbone_type', 'skatdnn')}")
     print(f"  Disk Space: {cfg['disk_space']}")
